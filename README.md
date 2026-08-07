@@ -21,7 +21,7 @@ A simple web-based control panel for sending movement commands to a robot using 
 ## Requirements
 
 - A web server with PHP support - `Infinityfree is used`
-- A MySQL/MariaDB database
+- A MySQL database
 - A modern browser that supports speech recognition (such as Chrome)
 
 ## Setup
