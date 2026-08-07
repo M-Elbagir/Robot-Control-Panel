@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>Control Pad</title>
+<style>
+  body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    background: #0f172a;
+    color: #e2e8f0;
+    font-family: Arial, Helvetica, sans-serif;
+  }
+
+  .control-pad {
+    display: grid;
+    grid-template-columns: repeat(3, 120px);
+    grid-template-rows: repeat(3, 70px);
+    gap: 20px;
+    justify-items: center;
+    align-items: center;
+    direction: ltr;
+  }
+
+  .btn {
+    width: 100%;
+    height: 100%;
+    border: 2px solid #334155;
+    border-radius: 12px;
+    background: #111827;
+    font-size: 18px;
+    font-weight: bold;
+    color: #f8fafc;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: 0.2s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  }
+
+  .btn:hover { background: #1f2937; }
+  .btn.stop { border-color: #ef4444; }
+
+  .forward  { grid-column: 2; grid-row: 1; }
+  .left     { grid-column: 1; grid-row: 2; }
+  .stop     { grid-column: 2; grid-row: 2; }
+  .right    { grid-column: 3; grid-row: 2; }
+  .backward { grid-column: 2; grid-row: 3; }
+
+  .speak-btn {
+    margin-top: 20px;
+    padding: 12px 20px;
+    border: 2px solid #38bdf8;
+    border-radius: 999px;
+    background: #0f2a3d;
+    color: #e0f2fe;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.2s ease;
+  }
+
+  .speak-btn:hover { background: #123952; }
+  .speak-btn.listening {
+    background: #3f1d1d;
+    border-color: #f87171;
+    color: #fee2e2;
+  }
+
+  .transcript-bar {
+    margin-top: 12px;
+    min-height: 46px;
+    width: min(320px, 80vw);
+    padding: 10px 14px;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    background: #111827;
+    color: #cbd5e1;
+    font-size: 14px;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    word-break: break-word;
+  }
+
+  #status {
+    margin-top: 25px;
+    font-size: 16px;
+    color: #94a3b8;
+  }
+</style>
+</head>
+<body>
+
+  <div class="control-pad">
+    <button class="btn forward"  onclick="sendCommand('forward')">forward</button>
+    <button class="btn left"     onclick="sendCommand('left')">left</button>
+    <button class="btn stop"     onclick="sendCommand('stop')">stop</button>
+    <button class="btn right"    onclick="sendCommand('right')">right</button>
+    <button class="btn backward" onclick="sendCommand('backward')">backward</button>
+  </div>
+
+  <button id="speakBtn" class="speak-btn" onclick="toggleSpeechRecognition()">🎤 Speak</button>
+
+  <div id="transcriptBar" class="transcript-bar">انتظر...</div>
+
+  <div id="status">جاهز</div>
+
+  <script>
+    let recognition = null;
+    let isListening = false;
+
+    function updateStatus(message) {
+      document.getElementById('status').innerText = message;
+    }
+
+    function updateTranscript(message) {
+      const transcriptBar = document.getElementById('transcriptBar');
+      if (transcriptBar) {
+        transcriptBar.textContent = message;
+      }
+    }
+
+    function normalizeCommand(text) {
+      const command = (text || '').trim().toLowerCase();
+
+      if (!command) return null;
+      if (command.includes('forward') || command.includes('go forward')) return 'forward';
+      if (command.includes('backward') || command.includes('back') || command.includes('go back')) return 'backward';
+      if (command.includes('right') || command.includes('turn right')) return 'right';
+      if (command.includes('left') || command.includes('turn left')) return 'left';
+      if (command.includes('stop') || command.includes('halt') || command.includes('freeze')) return 'stop';
+      return null;
+    }
+
+    function initSpeechRecognition() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+      if (!SpeechRecognition) {
+        updateStatus('المتصفح لا يدعم التعرف على الصوت');
+        return null;
+      }
+
+      recognition = new SpeechRecognition();
+      recognition.lang = 'en-US';
+      recognition.continuous = false;
+      recognition.interimResults = true;
+
+      recognition.onstart = function () {
+        isListening = true;
+        const btn = document.getElementById('speakBtn');
+        if (btn) {
+          btn.textContent = '🎤 Listening...';
+          btn.classList.add('listening');
+        }
+        updateStatus('استمع للأمر...');
+      };
+
+      recognition.onresult = function (event) {
+        let transcript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript;
+          if (!event.results[i].isFinal) {
+            transcript += ' ';
+          }
+        }
+
+        transcript = transcript.trim();
+        if (transcript) {
+          updateTranscript(transcript);
+        }
+
+        const command = normalizeCommand(transcript);
+
+        if (command) {
+          updateStatus('تم التعرف على: "' + transcript + '"');
+          sendCommand(command);
+        } else if (transcript) {
+          updateStatus('لم يتم التعرف على أمر معروف: "' + transcript + '"');
+        }
+      };
+
+      recognition.onerror = function (event) {
+        isListening = false;
+        const btn = document.getElementById('speakBtn');
+        if (btn) {
+          btn.textContent = '🎤 Speak';
+          btn.classList.remove('listening');
+        }
+        updateTranscript('تعذر التقاط الكلام');
+        updateStatus('خطأ في التعرف على الصوت: ' + event.error);
+      };
+
+      recognition.onend = function () {
+        isListening = false;
+        const btn = document.getElementById('speakBtn');
+        if (btn) {
+          btn.textContent = '🎤 Speak';
+          btn.classList.remove('listening');
+        }
+      };
+
+      return recognition;
+    }
+
+    function toggleSpeechRecognition() {
+      if (!recognition) {
+        recognition = initSpeechRecognition();
+      }
+
+      if (!recognition) {
+        return;
+      }
+
+      if (isListening) {
+        recognition.stop();
+        return;
+      }
+
+      recognition.start();
+    }
+
+    function sendCommand(cmd) {
+      updateStatus('جاري الإرسال...');
+
+      fetch('update_command.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'command=' + encodeURIComponent(cmd)
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success') {
+          updateStatus('تم تحديث الجدول: ' + data.button + ' -> "' + data.stored_as + '"');
+        } else {
+          updateStatus('خطأ: ' + data.message);
+        }
+      })
+      .catch(err => {
+        updateStatus('فشل الاتصال بالسيرفر');
+      });
+    }
+  </script>
+
+</body>
+</html>
