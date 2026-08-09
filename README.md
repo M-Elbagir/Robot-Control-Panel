@@ -28,7 +28,7 @@ A simple web-based control panel for sending movement commands to a robot using 
 
 1. Place the project in your web server directory.
 2. Create the database and import the contents of setup.sql.
-3. Update the database connection settings in db.php.
+3. Update the database connection settings in db.php with your own values.
 4. Open index.html in your browser through the web server.
 
 ## Usage
